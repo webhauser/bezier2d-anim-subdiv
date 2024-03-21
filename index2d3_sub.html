@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Recursive Bezier curve drawing via subdivision</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="Keywords" content="Bezier 2D, subdivision curve, graphics">
+<meta name="Description" content="Recursive Bezier curve drawing">
+<meta name="author" content="webhauser@gmail.com">
+<style>
+* { margin:0; padding:0; } 	/* to remove the top and left whitespace */
+html, body { overflow: hidden;} /* remove scrollbars */
+#top {
+	width: 100%;
+	height: 50px;
+	text-align: center;
+}
+#myCanvas {
+	position:fixed;
+	left:0;
+	top:50px;
+	width:100%;
+	height:100%;
+	border:1px solid #c3c3c3;
+}
+</style>
+</head>
+<body>
+<noscript>JavaScript is Disabled. Please enable javascript and refresh the page</noscript>
+<div id="top">
+Show polygon <input type="checkbox" id="showPolygon" checked>
+Show numbers <input type="checkbox" id="showNumbers" checked>
+Show marks <input type="checkbox" id="showMarks" checked>
+Number of iterations: <input type="number" id="num" min="1" max="10" value="5">
+<button id="mybutton" onclick="buttonclick()">Calculate</button>
+</div>
+<canvas id="myCanvas">Your browser does not support the canvas element.</canvas>
+<script>
+const fps = 5;
+var n = 5;		/* maximum recursion level */
+var size = 5;		/* marker size */
+var colour = "#0000FF";	/* marker color */
+var showNumbers = true;
+var showMarks = true;
+var showPolygon = true;
+var first = true;
+var P = [
+	[20,500],
+	[10,10],
+	[1024,10],
+	[1000, 500]
+];
+var globalID;
+
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+function resize() {
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+	render();
+}
+
+function dot(x,y) {
+	ctx.fillRect(x,y,1,1);
+}
+
+function mark(x,y,msg) {
+	ctx.fillStyle = colour;
+	ctx.fillRect(x-size/2,y-size/2,size,size);
+	if(msg) {
+		ctx.fillStyle = "#000000";
+		ctx.fillText(msg,x+size+2,y+size+4);
+	}
+}
+
+function draw_markers(p) {
+	var i,x,y;
+
+	ctx.font = "10px Verdana";
+	ctx.beginPath();
+	for(i=0; i<p.length; i++) {
+		x=p[i][0];y=p[i][1];
+		if(showMarks) mark(x,y, showNumbers ? "P" + i : null);
+		if(i==0) ctx.moveTo(x,y); 
+		else ctx.lineTo(x,y);
+	}
+	ctx.stroke();
+}
+
+/*
+function h(a,b) {
+	return (a+b)/2;
+}
+
+function subdiv_bezier(p0,p1,p2,p3) {
+var q,r,s;
+		q=[
+		[h(p0[0],p1[0]), h(p0[1],p1[1])],
+		[h(p1[0],p2[0]), h(p1[1],p2[1])],
+		[h(p2[0],p3[0]), h(p2[1],p3[1])]];
+		
+		r=[
+		[h(q[0][0],q[1][0]), h(q[0][1],q[1][1])],
+		[h(q[1][0],q[2][0]), h(q[1][1],q[2][1])]];
+		
+		s=[h(r[0][0],r[1][0]), h(r[0][1],r[1][1])];
+
+		return [p0, q[0], r[0], s, r[1], q[2], p3];
+}
+*/
+
+function hh(a,b) {
+	return [(a[0]+b[0])/2, (a[1]+b[1])/2];
+}
+
+function subdiv_curve2d(p0,p1,p2,p3) {
+var q =	[hh(p0,p1), hh(p1,p2), hh(p2,p3)];
+var r = [hh(q[0],q[1]), hh(q[1],q[2])];
+var s = hh(r[0],r[1]);
+return [p0, q[0], r[0], s, r[1], q[2], p3];
+}
+
+function render() {
+	var i,j,k,v,Q=[];
+	
+	ctx.clearRect(0,0,canvas.width,canvas.height);
+	draw_markers(P);
+
+	if(showPolygon) { if(first) R=P; else draw_markers(R); }
+
+	if(!n) {
+		window.cancelAnimationFrame(globalID);
+		disableButton(false);
+		return;
+	}
+	for(i=0; i<P.length-1; i+=3) {
+		v = subdiv_curve2d(P[i],P[i+1],P[i+2],P[i+3]);	//v = subdiv_bezier(P[i],P[i+1],P[i+2],P[i+3]);
+		for(k=2*i,j=0; j<7; j++) Q[j+k] = v[j];
+	}
+	P=Q;
+	n--;
+
+	first=false;
+
+	setTimeout(() => {
+	  globalID = window.requestAnimationFrame(render);
+	}, 1000 / fps);	
+}
+
+/**
+ * Returns a random integer between min and max
+ * Using Math.round() will give you a non-uniform distribution!
+ */
+function rnd(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomize() {
+	var a=50, xs=canvas.width-a, ys=canvas.height-a;
+	P=[
+	[rnd(a,xs),rnd(a,ys)],
+	[rnd(a,xs),rnd(a,ys)],
+	[rnd(a,xs),rnd(a,ys)],
+	[rnd(a,xs),rnd(a,ys)]];
+}
+
+function disableButton(d) {
+var button = document.getElementById("mybutton");
+button.disabled = d;
+}
+
+function buttonclick() {
+first=true;
+disableButton(true);
+showPolygon=document.getElementById("showPolygon").checked;
+showMarks=document.getElementById("showMarks").checked;
+showNumbers=document.getElementById("showNumbers").checked;
+n=document.getElementById("num").value;
+randomize();
+resize();
+}
+
+window.addEventListener('resize', resize, false); resize();
+</script>
+</body>
+</html>
